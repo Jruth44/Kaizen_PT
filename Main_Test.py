@@ -12,15 +12,22 @@ class PTExercisePlanner:
         
     def generate_exercises(self, patient_data: Dict) -> Dict:
         """Generate exercise recommendations based on patient data."""
-        message = self.client.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=1000,
-            temperature=0,
-            system="You are an expert physical therapy assistant specialized in creating evidence-based exercise recommendations. Your role is to analyze patient data and suggest appropriate exercises based on their condition. Your recommendations must be formatted as structured data for easy integration into a PT planning system.\n\nEach exercise recommendation must be evidence-based and include:\n1. Clear name and brief description\n2. Specific parameters (sets/reps/frequency)\n3. Clear progression criteria\n4. Scientific rationale\n\nFormat all responses as a JSON object. Be precise and concise, avoiding unnecessary explanations or disclaimers.",
-            messages=[
-                {
-                    "role": "user",
-                    "content": f"""Generate a set of targeted exercises for this patient:
+        try:
+            message = self.client.beta.prompt_caching.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=1000,
+                temperature=0,
+                system=[
+                    {
+                        "type": "text",
+                        "text": "You are an expert physical therapy assistant specialized in creating evidence-based exercise recommendations. Your role is to analyze patient data and suggest appropriate exercises based on their condition. Your recommendations must be formatted as structured data for easy integration into a PT planning system.\n\nEach exercise recommendation must be evidence-based and include:\n1. Clear name and brief description\n2. Specific parameters (sets/reps/frequency)\n3. Clear progression criteria\n4. Scientific rationale\n\nFormat all responses as a JSON object. Be precise and concise, avoiding unnecessary explanations or disclaimers.",
+                        "cache_control": {"type": "ephemeral"}
+                    }
+                ],
+                messages=[
+                    {
+                        "role": "user",
+                        "content": f"""Generate a set of targeted exercises for this patient:
 
 <patient_data>
 Age: {patient_data['age']}
@@ -52,6 +59,14 @@ Provide output in this exact JSON structure:
             
             # Debug: Print raw message content
             st.write("Debug - Raw message content:", message.content)
+
+            # Debug: Print cache usage statistics
+            st.write("Debug - Cache usage:", {
+                "input_tokens": message.usage.input_tokens,
+                "cache_creation_input_tokens": message.usage.cache_creation_input_tokens,
+                "cache_read_input_tokens": message.usage.cache_read_input_tokens,
+                "output_tokens": message.usage.output_tokens
+            })
             
             # Handle possible list response
             if isinstance(message.content, list):
