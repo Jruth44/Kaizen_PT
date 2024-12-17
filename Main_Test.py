@@ -3,6 +3,8 @@ import anthropic
 import json
 from typing import Dict, List
 import os
+from datetime import datetime, timedelta
+import pandas as pd
 
 class PTExercisePlanner:
     def __init__(self):
@@ -10,7 +12,7 @@ class PTExercisePlanner:
             api_key="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"
         )
         
-    def generate_exercises(self, patient_data: Dict) -> Dict:
+    def generate_exercises(self, patient_data: Dict, num_exercises: int) -> Dict:
         """Generate exercise recommendations based on patient data."""
         try:
             message = self.client.beta.prompt_caching.messages.create(
@@ -20,7 +22,17 @@ class PTExercisePlanner:
                 system=[
                     {
                         "type": "text",
-                        "text": "You are an expert physical therapy assistant specialized in creating evidence-based exercise recommendations. Your role is to analyze patient data and suggest appropriate exercises based on their condition. Your recommendations must be formatted as structured data for easy integration into a PT planning system.\n\nEach exercise recommendation must be evidence-based and include:\n1. Clear name and brief description\n2. Specific parameters (sets/reps/frequency)\n3. Clear progression criteria\n4. Scientific rationale\n\nFormat all responses as a JSON object. Be precise and concise, avoiding unnecessary explanations or disclaimers.",
+                        "text": f"""You are an expert physical therapy assistant specialized in creating evidence-based exercise recommendations. Your role is to analyze patient data and suggest appropriate exercises based on their condition. Your recommendations must be formatted as structured data for easy integration into a PT planning system.
+
+Each exercise recommendation must be evidence-based and include:
+1. Clear name and brief description
+2. Specific parameters (sets/reps/frequency)
+3. Clear progression criteria
+4. Scientific rationale
+
+Generate exactly {num_exercises} exercises.
+
+Format all responses as a JSON object. Be precise and concise, avoiding unnecessary explanations or disclaimers.""",
                         "cache_control": {"type": "ephemeral"}
                     }
                 ],
@@ -57,56 +69,46 @@ Provide output in this exact JSON structure:
                 ]
             )
             
-            # Debug: Print raw message content
-            st.write("Debug - Raw message content:", message.content)
-
-            # Debug: Print cache usage statistics
-            st.write("Debug - Cache usage:", {
-                "input_tokens": message.usage.input_tokens,
-                "cache_creation_input_tokens": message.usage.cache_creation_input_tokens,
-                "cache_read_input_tokens": message.usage.cache_read_input_tokens,
-                "output_tokens": message.usage.output_tokens
-            })
-            
             # Handle possible list response
             if isinstance(message.content, list):
                 content = message.content[0].text
             else:
                 content = message.content
                 
-            # Debug: Print processed content
-            st.write("Debug - Processed content:", content)
-            
-            try:
-                return json.loads(content)
-            except json.JSONDecodeError as e:
-                st.error(f"JSON parsing error: {str(e)}")
-                st.write("Content that failed to parse:", content)
-                return None
+            return json.loads(content)
                 
         except Exception as e:
             st.error(f"Error generating exercises: {str(e)}")
-            st.write("Full error:", str(e))
             return None
+
+def create_weekly_schedule():
+    """Create a weekly schedule template"""
+    days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    return {day: [] for day in days}
 
 def main():
     st.title("PT Exercise Planner")
     
-    # Initialize session state for selected exercises
+    # Initialize session state
     if 'selected_exercises' not in st.session_state:
         st.session_state.selected_exercises = []
     if 'current_recommendations' not in st.session_state:
         st.session_state.current_recommendations = None
+    if 'weekly_schedule' not in st.session_state:
+        st.session_state.weekly_schedule = create_weekly_schedule()
+    if 'patient_data' not in st.session_state:
+        st.session_state.patient_data = {}
         
     # Patient Information Form
     st.header("Patient Information")
-    with st.form("patient_info"):
+    with st.form("pt_form"):
         col1, col2 = st.columns(2)
         with col1:
             age = st.number_input("Age", min_value=0, max_value=120)
             injury_location = st.text_input("Injury Location")
             pain_level = st.slider("Pain Level", 0, 10, 5)
             mobility_status = st.text_input("Mobility Status")
+            num_exercises = st.number_input("Number of Exercises to Generate", min_value=1, max_value=10, value=4)
             
         with col2:
             medical_history = st.text_area("Medical History")
@@ -115,12 +117,14 @@ def main():
                 ["Sedentary", "Light", "Moderate", "Active", "Very Active"]
             )
             goals = st.text_area("Treatment Goals")
+            patient_name = st.text_input("Patient Name")
             
         submitted = st.form_submit_button("Generate Exercise Plan")
         
         if submitted:
-            planner = PTExercisePlanner()
-            patient_data = {
+            # Store patient data in session state
+            st.session_state.patient_data = {
+                "name": patient_name,
                 "age": age,
                 "injury_location": injury_location,
                 "pain_level": pain_level,
@@ -130,67 +134,114 @@ def main():
                 "goals": goals
             }
             
+            planner = PTExercisePlanner()
             with st.spinner("Generating exercise recommendations..."):
-                recommendations = planner.generate_exercises(patient_data)
+                recommendations = planner.generate_exercises(st.session_state.patient_data, num_exercises)
                 if recommendations:
                     st.session_state.current_recommendations = recommendations
+                    st.rerun()
                 
-    # Display Exercise Recommendations
+    # Display Exercise Recommendations and Weekly Planner
     if st.session_state.current_recommendations:
-        st.header("Recommended Exercises")
-        recommendations = st.session_state.current_recommendations
+        col1, col2 = st.columns([2, 3])
         
-        # Display notes
-        st.info(recommendations["notes"])
-        
-        # Exercise Selection
-        st.subheader("Select Exercises for Plan")
-        for exercise in recommendations["exercises"]:
-            col1, col2 = st.columns([0.1, 0.9])
-            with col1:
-                selected = st.checkbox(
-                    "", 
-                    key=f"select_{exercise['id']}",
-                    value=exercise['id'] in [ex['id'] for ex in st.session_state.selected_exercises]
-                )
-            with col2:
+        with col1:
+            st.header("Exercise Library")
+            recommendations = st.session_state.current_recommendations
+            
+            # Display notes
+            st.info(recommendations["notes"])
+            
+            # Exercise Selection
+            for exercise in recommendations["exercises"]:
                 with st.expander(f"{exercise['name']}"):
                     st.write(f"**Description:** {exercise['description']}")
                     st.write(f"**Parameters:** {exercise['parameters']}")
                     st.write(f"**Progression Criteria:** {exercise['progressionCriteria']}")
                     st.write(f"**Rationale:** {exercise['rationale']}")
-            
-            if selected and exercise['id'] not in [ex['id'] for ex in st.session_state.selected_exercises]:
-                st.session_state.selected_exercises.append(exercise)
-            elif not selected and exercise['id'] in [ex['id'] for ex in st.session_state.selected_exercises]:
-                st.session_state.selected_exercises = [ex for ex in st.session_state.selected_exercises if ex['id'] != exercise['id']]
+                    
+                    # Add to schedule button
+                    cols = st.columns(2)
+                    with cols[0]:
+                        day = st.selectbox(f"Day for {exercise['name']}", 
+                                         ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+                                         key=f"day_{exercise['id']}")
+                    with cols[1]:
+                        if st.button("Add to Schedule", key=f"add_{exercise['id']}"):
+                            if exercise not in st.session_state.weekly_schedule[day]:
+                                st.session_state.weekly_schedule[day].append(exercise)
+                                st.success(f"Added {exercise['name']} to {day}")
         
-        # Display Selected Exercises
-        if st.session_state.selected_exercises:
-            st.header("Selected Exercises")
-            for exercise in st.session_state.selected_exercises:
-                st.markdown(f"""
-                ### {exercise['name']}
-                - **Description:** {exercise['description']}
-                - **Parameters:** {exercise['parameters']}
-                - **Progression Criteria:** {exercise['progressionCriteria']}
-                """)
-                
-            # Add buttons for plan actions
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                if st.button("Generate New Exercises"):
-                    st.session_state.current_recommendations = None
-                    st.session_state.selected_exercises = []
-                    st.rerun()
-            with col2:
-                if st.button("Clear Selection"):
-                    st.session_state.selected_exercises = []
-                    st.rerun()
-            with col3:
-                if st.button("Export Plan"):
-                    # In a real application, you would implement export functionality here
-                    st.info("Export functionality would go here")
+        with col2:
+            st.header("Weekly Schedule")
+            
+            # Display and edit weekly schedule
+            for day, exercises in st.session_state.weekly_schedule.items():
+                with st.expander(day, expanded=True):
+                    if not exercises:
+                        st.write("No exercises scheduled")
+                    else:
+                        for idx, exercise in enumerate(exercises):
+                            st.write(f"**{exercise['name']}**")
+                            st.write(f"Parameters: {exercise['parameters']}")
+                            if st.button("Remove", key=f"remove_{day}_{idx}"):
+                                st.session_state.weekly_schedule[day].remove(exercise)
+                                st.rerun()
+            
+            # Export functionality
+            if st.button("Export Treatment Plan"):
+                export_plan(st.session_state.patient_data, st.session_state.weekly_schedule)
+
+def export_plan(patient_data: Dict, weekly_schedule: Dict):
+    """Export the treatment plan as a formatted document"""
+    # Create a timestamp for the filename
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"treatment_plan_{timestamp}.txt"
+    
+    # Generate the content
+    content = []
+    content.append("PHYSICAL THERAPY TREATMENT PLAN")
+    content.append("=" * 30 + "\n")
+    
+    # Patient Information
+    content.append("PATIENT INFORMATION")
+    content.append("-" * 20)
+    content.append(f"Name: {patient_data.get('name', 'N/A')}")
+    content.append(f"Age: {patient_data.get('age', 'N/A')}")
+    content.append(f"Injury Location: {patient_data.get('injury_location', 'N/A')}")
+    content.append(f"Pain Level: {patient_data.get('pain_level', 'N/A')}/10")
+    content.append(f"Activity Level: {patient_data.get('activity_level', 'N/A')}")
+    content.append(f"\nTreatment Goals:")
+    content.append(f"{patient_data.get('goals', 'N/A')}\n")
+    
+    # Weekly Schedule
+    content.append("WEEKLY EXERCISE SCHEDULE")
+    content.append("-" * 20)
+    for day, exercises in weekly_schedule.items():
+        content.append(f"\n{day}:")
+        if not exercises:
+            content.append("Rest day / No exercises scheduled")
+        else:
+            for exercise in exercises:
+                content.append(f"\n  • {exercise['name']}")
+                content.append(f"    Parameters: {exercise['parameters']}")
+                content.append(f"    Description: {exercise['description']}")
+                content.append(f"    Progression Criteria: {exercise['progressionCriteria']}")
+    
+    # Create the export
+    export_content = "\n".join(content)
+    
+    # Create download button
+    st.download_button(
+        label="Download Treatment Plan",
+        data=export_content,
+        file_name=filename,
+        mime="text/plain"
+    )
+    
+    # Also display in the app
+    with st.expander("Preview Treatment Plan"):
+        st.text(export_content)
 
 if __name__ == "__main__":
     main()
