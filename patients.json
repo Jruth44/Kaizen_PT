@@ -1,0 +1,71 @@
+{
+    "John Doe": {
+        "age": 30,
+        "injury_location": "Right Knee",
+        "pain_level": 5,
+        "mobility_status": "Slightly Reduced (occasionally needs cane)",
+        "medical_history": "Previous ACL surgery (2 years ago)",
+        "activity_level": "Moderate",
+        "goals": "Improve knee stability & strength",
+        "weekly_schedule": {
+            "Monday": [
+                {
+                    "id": "ex1",
+                    "name": "Wall Slides",
+                    "description": "Standing with back against wall, slowly slide down and up while maintaining proper knee alignment",
+                    "parameters": "3 sets of 10 reps, daily; hold position for 5 seconds",
+                    "progressionCriteria": "When able to complete 3 sets with minimal discomfort, increase hold time to 8 seconds",
+                    "rationale": "Promotes quadriceps activation and proper patellar tracking while providing external support"
+                },
+                {
+                    "id": "ex2",
+                    "name": "Single-Leg Balance",
+                    "description": "Stand on right leg with slight knee bend, maintain balance",
+                    "parameters": "4 sets of 30-second holds, daily",
+                    "progressionCriteria": "Progress to unstable surface once able to maintain 30 seconds without wavering",
+                    "rationale": "Enhances proprioception and neuromuscular control post-ACL surgery"
+                },
+                {
+                    "id": "ex3",
+                    "name": "Resistance Band Terminal Knee Extension",
+                    "description": "Secure band to fixed point, perform terminal knee extension from 30\u00b0 to 0\u00b0",
+                    "parameters": "3 sets of 15 reps, every other day",
+                    "progressionCriteria": "Increase band resistance when able to complete all sets with proper form",
+                    "rationale": "Targets quadriceps activation in functional range, crucial for ACL stability"
+                },
+                {
+                    "id": "ex4",
+                    "name": "Step-Ups",
+                    "description": "Step up onto 6-inch platform, focusing on controlled movement",
+                    "parameters": "3 sets of 12 reps each leg, every other day",
+                    "progressionCriteria": "Increase step height when able to perform without pain or compensation",
+                    "rationale": "Builds functional strength and stability in weight-bearing position"
+                }
+            ],
+            "Tuesday": [],
+            "Wednesday": [],
+            "Thursday": [],
+            "Friday": [],
+            "Saturday": [],
+            "Sunday": []
+        }
+    },
+    "Jane Doe": {
+        "age": 24,
+        "injury_location": "Left Knee",
+        "pain_level": 2,
+        "mobility_status": "Slight Limp",
+        "medical_history": "Previous ACL tear",
+        "activity_level": "Moderate",
+        "goals": "Full recovery without limp",
+        "weekly_schedule": {
+            "Monday": [],
+            "Tuesday": [],
+            "Wednesday": [],
+            "Thursday": [],
+            "Friday": [],
+            "Saturday": [],
+            "Sunday": []
+        }
+    }
+}
