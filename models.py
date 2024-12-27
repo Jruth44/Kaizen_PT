@@ -1,13 +1,23 @@
-import anthropic
-import json
-from typing import Dict, List
 import os
+import json
+import anthropic
+import streamlit as st  # <-- new import
+from typing import Dict, List
 
 class PTExercisePlanner:
     def __init__(self):
-        self.client = anthropic.Anthropic(
-            api_key=os.environ.get("ANTHROPIC_API_KEY")
-        )
+        # 1. Attempt to read the key from the local environment.
+        anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY")
+
+        # 2. If no key in environment, try Streamlit secrets.
+        if not anthropic_api_key and "ANTHROPIC_API_KEY" in st.secrets:
+            anthropic_api_key = st.secrets["ANTHROPIC_API_KEY"]
+            # If you want the rest of your code to still use os.environ:
+            os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
+
+        # 3. Create the Anthropic client
+        self.client = anthropic.Anthropic(api_key=anthropic_api_key)
+
     def generate_exercises(self, patient_data: Dict, num_exercises: int) -> Dict:
         """Generate exercise recommendations based on patient data."""
         try:
