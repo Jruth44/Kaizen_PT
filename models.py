@@ -1,26 +1,41 @@
 import os
 import json
 import anthropic
-import streamlit as st  # <-- new import
+import streamlit as st
 from typing import Dict, List
 
 class PTExercisePlanner:
     def __init__(self):
-        # 1. Attempt to read the key from the local environment.
+        # Debug: Check environment variable
+        st.write("DEBUG: Checking if ANTHROPIC_API_KEY is in environment...")
         anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if anthropic_api_key:
+            # Print just a few characters, so we don't leak the whole key
+            st.write(f"DEBUG: Found env key: {anthropic_api_key[:5]}... (masked)")
+        else:
+            st.write("DEBUG: No env key found. Checking Streamlit secrets...")
 
-        # 2. If no key in environment, try Streamlit secrets.
+        # Fallback: Check st.secrets
         if not anthropic_api_key and "ANTHROPIC_API_KEY" in st.secrets:
             anthropic_api_key = st.secrets["ANTHROPIC_API_KEY"]
-            # If you want the rest of your code to still use os.environ:
-            os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
+            if anthropic_api_key:
+                st.write(f"DEBUG: Found key in secrets: {anthropic_api_key[:5]}... (masked)")
+                # Optionally store it back into os.environ
+                os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
 
-        # 3. Create the Anthropic client
+        # If still no key, raise an error
+        if not anthropic_api_key:
+            st.error("ERROR: No Anthropic API key found!")
+        else:
+            st.write("DEBUG: Initializing Anthropics client...")
+
+        # Initialize client
         self.client = anthropic.Anthropic(api_key=anthropic_api_key)
 
     def generate_exercises(self, patient_data: Dict, num_exercises: int) -> Dict:
         """Generate exercise recommendations based on patient data."""
         try:
+            st.write("DEBUG: Calling Anthropic API to generate exercises...")
             message = self.client.beta.prompt_caching.messages.create(
                 model="claude-3-5-sonnet-20241022",
                 max_tokens=1000,
@@ -75,14 +90,28 @@ Provide output in this exact JSON structure:
                 ]
             )
 
-            # Handle possible list response
+            # Show the raw response object
+            st.write("DEBUG: Anthropic API returned a message object:")
+            st.write(message)
+
+            # Check the .content
             if isinstance(message.content, list):
                 content = message.content[0].text
             else:
                 content = message.content
 
-            return json.loads(content)
+            st.write("DEBUG: Content returned from the API call:")
+            st.write(content)
+
+            # Attempt to parse the JSON
+            parsed = json.loads(content)
+            st.write("DEBUG: Successfully parsed JSON:")
+            st.write(parsed)
+
+            return parsed
 
         except Exception as e:
-            print(f"Error generating exercises: {str(e)}")
+            st.error("An error occurred while generating exercises.")
+            # This prints the full traceback to the Streamlit UI
+            st.exception(e)
             return None
