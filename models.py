@@ -6,44 +6,25 @@ from typing import Dict, List
 
 class PTExercisePlanner:
     def __init__(self):
-        """
-        1. Try to get ANTHROPIC_API_KEY from environment.
-        2. If not found, look in st.secrets.
-        3. If still missing, raise an error.
-        4. Otherwise, create the Anthropic client (new usage).
-        """
+        # Get API key from environment variable (required)
         anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY")
 
         if not anthropic_api_key:
-            try:
-                if "ANTHROPIC_API_KEY" in st.secrets:
-                    anthropic_api_key = st.secrets["ANTHROPIC_API_KEY"]
-                    os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
-            except FileNotFoundError:
-                # Means there's literally no .streamlit/secrets.toml locally
-                pass
+            raise ValueError("The ANTHROPIC_API_KEY environment variable is not set!")
 
-        if not anthropic_api_key:
-            # Stop here so we don't try to call self.client
-            raise RuntimeError(
-                "No Anthropic API key found! Please set an environment variable "
-                "or create a .streamlit/secrets.toml or set Streamlit Cloud secrets."
-            )
-
-        # Use the new anthropic.Client approach (no .beta.prompt_caching)
-        self.client = anthropic.Client(api_key=anthropic_api_key)
+        self.client = anthropic.Anthropic(api_key=anthropic_api_key)
 
     def generate_exercises(self, patient_data: Dict, num_exercises: int) -> Dict:
-        """Generate exercise recommendations based on patient data using Claude."""
+        """Generate exercise recommendations based on patient data."""
         try:
-            st.write("DEBUG: Calling Anthropic API (completions.create)...")
-
-            # Build your "system" instructions and your "user" message
-            system_text = f"""
-You are an expert physical therapy assistant specialized in creating evidence-based exercise recommendations. 
-Your role is to analyze patient data and suggest appropriate exercises based on their condition. 
-Your recommendations must be formatted as structured data for easy integration into a PT planning system.
-These are not formal medical advice but purely educational.
+            st.write("DEBUG: Calling Anthropic API to generate exercises...")
+            
+            # Update your API call to use the correct functions/methods for messaging
+            message = self.client.messages.create(
+                model="claude-3-sonnet-20240229",
+                max_tokens=1000,
+                temperature=0,
+                system=f"""You are an expert physical therapy assistant specialized in creating evidence-based exercise recommendations. Your role is to analyze patient data and suggest appropriate exercises based on their condition. Your recommendations must be formatted as structured data for easy integration into a PT planning system.
 
 Each exercise recommendation must be evidence-based and include:
 1. Clear name and brief description
@@ -53,12 +34,11 @@ Each exercise recommendation must be evidence-based and include:
 
 Generate exactly {num_exercises} exercises.
 
-Format all responses as a JSON object. 
-Be precise and concise, avoiding unnecessary explanations or disclaimers.
-"""
-
-            user_text = f"""
-Generate a set of targeted exercises for this patient:
+Format all responses as a JSON object. Be precise and concise, avoiding unnecessary explanations or disclaimers.""",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": f"""Generate a set of targeted exercises for this patient:
 
 <patient_data>
 Age: {patient_data['age']}
@@ -83,36 +63,33 @@ Provide output in this exact JSON structure:
         }}
     ],
     "notes": "string"
-}}
-"""
-
-            # Anthropics requires constructing the prompt with HUMAN_PROMPT + AI_PROMPT
-            # We'll put system instructions + user message together as the "human" section.
-            prompt = (
-                f"{anthropic.HUMAN_PROMPT} {system_text}\n\n{user_text}"
-                f"{anthropic.AI_PROMPT}"
+}}"""
+                    }
+                ]
             )
+            
+            # Show the raw response object
+            st.write("DEBUG: Anthropic API returned a message object:")
+            st.write(message)
 
-            # Make the API call
-            response = self.client.completions.create(
-                model="claude-2",              # or another Claude model you have access to
-                prompt=prompt,
-                max_tokens_to_sample=1000,
-                temperature=0
-            )
+            # Check the .content (Updated to match potential new structure)
+            if isinstance(message.content, list):
+                content = message.content[0].text  
+            else:
+                content = message.content # Or message.content.text if it's nested
 
-            # The textual completion
-            content = response.completion  
-            st.write("DEBUG: Raw content returned from the API call:")
+            st.write("DEBUG: Content returned from the API call:")
             st.write(content)
 
             # Attempt to parse the JSON
             parsed = json.loads(content)
             st.write("DEBUG: Successfully parsed JSON:")
             st.write(parsed)
+
             return parsed
 
         except Exception as e:
             st.error("An error occurred while generating exercises.")
+            # This prints the full traceback to the Streamlit UI
             st.exception(e)
             return None
