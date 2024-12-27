@@ -9,7 +9,7 @@ import pandas as pd
 class PTExercisePlanner:
     def __init__(self):
         self.client = anthropic.Anthropic(
-            api_key="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"
+            api_key="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"
         )
         
     def generate_exercises(self, patient_data: Dict, num_exercises: int) -> Dict:
