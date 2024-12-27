@@ -106,14 +106,15 @@ def display_treatment_plan_page(patients):
         with st.spinner("Generating exercise recommendations..."):
             recommendations = planner.generate_exercises(patient_data, num_exercises)
             if recommendations:
-                patient_data["recommendations"] = recommendations
+                patient_data["recommendations"] = recommendations  # Store in patient_data
+                save_patients(patients)  # Save updated patient data
                 st.session_state.recommendations = recommendations
                 st.success("Exercise recommendations generated!")
 
-    # Display generated exercises
-    if "recommendations" in st.session_state:
+    # Display generated exercises (only if they exist for the patient)
+    if "recommendations" in patient_data:
         st.subheader("Generated Exercises")
-        for exercise in st.session_state.recommendations["exercises"]:
+        for exercise in patient_data["recommendations"]["exercises"]:
             with st.expander(exercise["name"]):
                 st.write(f"**Description:** {exercise['description']}")
                 st.write(f"**Parameters:** {exercise['parameters']}")

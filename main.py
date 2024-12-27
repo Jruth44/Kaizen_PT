@@ -1,12 +1,12 @@
 # main.py
 import streamlit as st
 from ui import display_patient_management_page, display_treatment_plan_page, display_pt_schedule_page
-from utils import load_patients, save_patients, generate_pt_weekly_schedule
+from utils import load_patients, save_patients
 
 def main():
     st.title("PT Exercise Planner")
 
-    # Load patient data (consider doing this once at the start)
+    # Load patient data 
     patients = load_patients()
 
     # Sidebar navigation

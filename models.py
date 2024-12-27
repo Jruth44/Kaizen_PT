@@ -77,6 +77,5 @@ Provide output in this exact JSON structure:
             return parsed
 
         except Exception as e:
-            st.error("An error occurred while generating exercises.")
-            st.exception(e)  # Still show the exception for debugging
+            st.error(f"An error occurred while generating exercises: {e}") # User-friendly error
             return None
