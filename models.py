@@ -17,9 +17,7 @@ class PTExercisePlanner:
     def generate_exercises(self, patient_data: Dict, num_exercises: int) -> Dict:
         """Generate exercise recommendations based on patient data."""
         try:
-            st.write("DEBUG: Calling Anthropic API to generate exercises...")
-            
-            # Update your API call to use the correct functions/methods for messaging
+            # API call to generate exercises
             message = self.client.messages.create(
                 model="claude-3-sonnet-20240229",
                 max_tokens=1000,
@@ -67,29 +65,18 @@ Provide output in this exact JSON structure:
                     }
                 ]
             )
-            
-            # Show the raw response object
-            st.write("DEBUG: Anthropic API returned a message object:")
-            st.write(message)
 
-            # Check the .content (Updated to match potential new structure)
+            # Handle the response
             if isinstance(message.content, list):
-                content = message.content[0].text  
+                content = message.content[0].text
             else:
-                content = message.content # Or message.content.text if it's nested
+                content = message.content
 
-            st.write("DEBUG: Content returned from the API call:")
-            st.write(content)
-
-            # Attempt to parse the JSON
+            # Parse the JSON response
             parsed = json.loads(content)
-            st.write("DEBUG: Successfully parsed JSON:")
-            st.write(parsed)
-
             return parsed
 
         except Exception as e:
             st.error("An error occurred while generating exercises.")
-            # This prints the full traceback to the Streamlit UI
-            st.exception(e)
+            st.exception(e)  # Still show the exception for debugging
             return None
