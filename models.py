@@ -6,31 +6,23 @@ from typing import Dict, List
 
 class PTExercisePlanner:
     def __init__(self):
-        # Debug: Check environment variable
-        st.write("DEBUG: Checking if ANTHROPIC_API_KEY is in environment...")
+        # Check environment variable first
         anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY")
-        if anthropic_api_key:
-            # Print just a few characters, so we don't leak the whole key
-            st.write(f"DEBUG: Found env key: {anthropic_api_key[:5]}... (masked)")
-        else:
-            st.write("DEBUG: No env key found. Checking Streamlit secrets...")
-
-        # Fallback: Check st.secrets
-        if not anthropic_api_key and "ANTHROPIC_API_KEY" in st.secrets:
-            anthropic_api_key = st.secrets["ANTHROPIC_API_KEY"]
-            if anthropic_api_key:
-                st.write(f"DEBUG: Found key in secrets: {anthropic_api_key[:5]}... (masked)")
-                # Optionally store it back into os.environ
-                os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
-
-        # If still no key, raise an error
+        
+        # If not found, try st.secrets
         if not anthropic_api_key:
-            st.error("ERROR: No Anthropic API key found!")
-        else:
-            st.write("DEBUG: Initializing Anthropics client...")
+            try:
+                if "ANTHROPIC_API_KEY" in st.secrets:
+                    anthropic_api_key = st.secrets["ANTHROPIC_API_KEY"]
+                    os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
+            except FileNotFoundError:
+                # Fallback if there's literally no .streamlit/secrets.toml
+                st.write("DEBUG: No local secrets.toml found. Skipping...")
 
-        # Initialize client
-        self.client = anthropic.Anthropic(api_key=anthropic_api_key)
+        if not anthropic_api_key:
+            st.error("No Anthropic API key found! Please set an environment variable or create a .streamlit/secrets.toml")
+        else:
+            self.client = anthropic.Anthropic(api_key=anthropic_api_key)
 
     def generate_exercises(self, patient_data: Dict, num_exercises: int) -> Dict:
         """Generate exercise recommendations based on patient data."""
